@@ -23,6 +23,15 @@ import javax.inject.Singleton
 object AppModule {
 
     /**
+     * Proporciona el contexto de la aplicación
+     */
+    @Provides
+    @Singleton
+    fun provideContext(@ApplicationContext context: Context): Context {
+        return context
+    }
+
+    /**
      * Proporciona la base de datos
      */
     @Provides

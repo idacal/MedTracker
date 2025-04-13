@@ -22,10 +22,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -231,7 +231,7 @@ fun UploadForm(
                 .padding(16.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.CalendarMonth,
+                imageVector = Icons.Outlined.CalendarMonth,
                 contentDescription = "Fecha",
                 tint = MaterialTheme.colorScheme.primary
             )
@@ -339,7 +339,7 @@ fun PdfSelector(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
-                    imageVector = Icons.Default.FileUpload,
+                    imageVector = Icons.Outlined.FileUpload,
                     contentDescription = "Seleccionar PDF",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(48.dp)

@@ -342,7 +342,8 @@ fun ParameterItem(
         colors = CardDefaults.cardColors(
             containerColor = statusColor.copy(alpha = 0.05f)
         ),
-        border = CardDefaults.outlinedCardBorder().copy(
+        shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(
             width = 1.dp,
             color = statusColor.copy(alpha = 0.5f)
         )
