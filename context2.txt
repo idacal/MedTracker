@@ -1,0 +1,754 @@
+# Implementación en Android (Kotlin) de Aplicación de Seguimiento de Exámenes Médicos
+
+## Descripción General
+
+Necesito desarrollar una aplicación nativa en Android usando Kotlin que permita a los usuarios cargar, procesar y visualizar los resultados de sus exámenes médicos. La aplicación debe ser capaz de extraer datos directamente de los PDFs sin depender de servicios en la nube, mostrando los resultados en interfaces limpias y visualmente intuitivas con gráficos de evolución temporal.
+
+## Interfaces de Usuario
+
+La aplicación debe contar con las siguientes pantallas principales, siguiendo el diseño material con colores médicos (azul principal #4285f4, verde para valores normales #4CAF50, amarillo para valores de vigilancia #FFA000, rojo para valores de atención #ef5350):
+
+### 1. Pantalla Principal (Dashboard)
+
+Debe contener:
+- Header personalizado con nombre del usuario y avatar
+- Tarjeta de resumen de salud mostrando cantidad de parámetros normales y a vigilar
+- Lista de exámenes recientes con fecha y nombre
+- Botón flotante (FAB) para agregar nuevo examen
+- Barra de navegación inferior con 3 secciones: Inicio, Historial, Perfil
+
+### 2. Pantalla de Categorías
+
+Muestra las diferentes categorías de exámenes:
+- Lista de tarjetas para cada categoría (Hematología, Bioquímica, Orinas, etc.)
+- Cada tarjeta debe mostrar indicadores visuales de estado (círculos de colores)
+- Contador de parámetros con valores fuera de rango en cada categoría
+
+### 3. Detalle de Parámetro
+
+Muestra información detallada de un parámetro específico:
+- Valor actual destacado con unidad de medida
+- Valores de referencia claramente indicados
+- Gráfico de línea mostrando evolución temporal
+- Línea horizontal indicando límites normales en el gráfico
+
+### 4. Subir Nuevo Examen
+
+Interfaz para cargar nuevos exámenes:
+- Área para seleccionar PDF desde almacenamiento
+- Campo para ingresar fecha y laboratorio
+- Botón para iniciar procesamiento
+- Indicador de progreso durante extracción
+
+### 5. Comparación de Exámenes
+
+Permite comparar valores entre diferentes fechas:
+- Selectores de fecha para elegir exámenes a comparar
+- Gráficos de barras comparativos
+- Indicadores de tendencia (flechas de subida/bajada)
+
+### 6. Compartir Resultados
+
+Funcionalidad para compartir con profesionales médicos:
+- Opciones para elegir qué compartir (exámenes completos o seleccionados)
+- Generación de PDF/informe para compartir
+- Opciones para envío por correo, WhatsApp, etc.
+
+## Procesamiento Local de PDFs
+
+Implementar funcionalidad para extraer datos de PDFs directamente en el dispositivo:
+
+### Componentes necesarios:
+
+1. **Visualización de PDF**: 
+   - Utilizar la biblioteca PdfRenderer nativa de Android
+   - Implementar un visor propio con zoom y navegación entre páginas
+
+2. **Extracción de Texto**:
+   - Para PDFs con texto seleccionable: Implementar PdfRenderer con TextExtractor
+   - Para PDFs escaneados: Integrar ML Kit para OCR en dispositivo
+
+3. **Procesamiento de Datos**:
+   - Sistema de plantillas para reconocer formatos comunes de laboratorios
+   - Expresiones regulares para extraer parámetros, valores y rangos
+   - Clasificar automáticamente en categorías (hematología, bioquímica, etc.)
+
+4. **Almacenamiento Local**:
+   - Base de datos Room para guardar resultados y evolución
+   - Storage para PDFs originales con limpieza automática 
+
+5. **Visualización de Datos**:
+   - MPAndroidChart para gráficos de evolución y comparativos
+   - RecyclerViews eficientes para listas de parámetros
+   - Codificación por colores según rangos de referencia
+
+## Especificaciones Técnicas
+
+### Arquitectura:
+- MVVM (Model-View-ViewModel) con LiveData y Flow
+- Clean Architecture con separación en capas
+- Utilizar Jetpack Components
+
+### Librerías Recomendadas:
+- **UI**: Material Components, ConstraintLayout, Navigation Component
+- **PDF**: Android PdfRenderer, iText PDF (si se necesita más funcionalidad)
+- **OCR**: ML Kit Text Recognition en dispositivo
+- **Gráficos**: MPAndroidChart
+- **Base de Datos**: Room con Coroutines
+- **Inyección de Dependencias**: Hilt o Koin
+- **Procesamiento**: Kotlin Coroutines con WorkManager
+
+### Módulos Principales:
+
+1. **app**: Módulo principal con actividades, fragmentos y navegación
+2. **core**: Componentes comunes, utilidades y extensiones
+3. **data**: Repositorios, fuentes de datos y modelos
+4. **domain**: Casos de uso e interfaces de repositorio
+5. **pdf-processor**: Módulo para procesamiento de PDFs
+6. **chart**: Visualizaciones y gráficos personalizados
+
+## Consideraciones de Rendimiento
+
+Para garantizar buen funcionamiento en el procesamiento local:
+
+1. **Procesamiento asíncrono**:
+   - Utilizar WorkManager para tareas en segundo plano
+   - Mostrar feedback durante el procesamiento
+
+2. **Memoria eficiente**:
+   - Procesar PDFs página por página
+   - Liberar recursos inmediatamente después de usarlos
+
+3. **Batería**:
+   - Optimizar algoritmos de extracción 
+   - Opción para posponer procesamiento intensivo hasta conectar a cargador
+
+4. **Almacenamiento**:
+   - Compresión de PDFs originales
+   - Políticas de limpieza para archivos temporales
+
+## Implementación de Extracción de Datos
+
+El módulo de extracción debe seguir este flujo:
+
+1. **Preprocesamiento**:
+   - Identificar tipo de PDF (texto seleccionable o escaneado)
+   - Para escaneados: optimizar imágenes para OCR (contraste, escala, etc.)
+
+2. **Extracción**:
+   - PDFs con texto: extraer directamente con PdfRenderer + TextExtractor
+   - PDFs escaneados: convertir a imágenes → OCR con ML Kit
+
+3. **Estructuración**:
+   - Identificar formato de laboratorio mediante patrones conocidos
+   - Aplicar expresiones regulares específicas según formato
+   - Extraer: parámetro, valor, unidad, rango de referencia
+
+4. **Validación**:
+   - Verificar coherencia de datos extraídos
+   - Permitir corrección manual si se detectan inconsistencias
+   - Normalización de unidades
+
+5. **Almacenamiento**:
+   - Mapear a entidades para base de datos Room
+   - Guardar con timestamping para seguimiento histórico
+
+## Ejemplo de Algoritmo de Extracción
+
+El algoritmo de extracción debe implementar patrones para los formatos más comunes:
+
+1. **Formato tabla**: `Parámetro | Valor | Unidad | Referencia`
+2. **Formato línea**: `Parámetro : Valor Unidad (Referencia)`
+3. **Formato mixto**: Combinación de los anteriores
+
+Para cada formato se deben definir expresiones regulares específicas, por ejemplo:
+
+```kotlin
+// Ejemplo para formato línea
+val linePattern = Pattern.compile(
+    "([A-Za-zÀ-ÿ\\s\\(\\)]+)\\s*:\\s*([0-9,.]+)\\s*([a-zA-Z%\\/]+)?\\s*(?:\\(?([0-9,.\\s\\-<>]+)\\)?)?",
+    Pattern.MULTILINE
+)
+
+// Proceso de extracción
+fun extractParameters(text: String): List<ExamParameter> {
+    val parameters = mutableListOf<ExamParameter>()
+    val matcher = linePattern.matcher(text)
+    
+    while (matcher.find()) {
+        val paramName = matcher.group(1)?.trim() ?: continue
+        val value = matcher.group(2)?.trim() ?: continue
+        val unit = matcher.group(3)?.trim() ?: ""
+        val reference = matcher.group(4)?.trim() ?: ""
+        
+        parameters.add(
+            ExamParameter(
+                name = paramName,
+                value = value,
+                unit = unit,
+                referenceRange = reference,
+                category = determineCategory(paramName)
+            )
+        )
+    }
+    
+    return parameters
+}
+```
+
+## Funcionalidades Prioritarias
+
+Implementar en este orden:
+
+1. Visualización y navegación básica (todas las pantallas)
+2. Carga y visualización de PDF
+3. Extracción básica de datos para PDFs con texto seleccionable
+4. Almacenamiento local y visualización de resultados
+5. Gráficos de evolución temporal
+6. OCR para PDFs escaneados
+7. Comparación de exámenes
+8. Funcionalidad de compartir
+
+// Ejemplo 1: Estructura de Proyecto
+/*
+app/
+├── src/main/
+│   ├── java/com/example/medtrackerapp/
+│   │   ├── di/                           # Inyección de dependencias
+│   │   ├── domain/                       # Capa de dominio
+│   │   │   ├── model/                    # Entidades de dominio
+│   │   │   ├── repository/               # Interfaces de repositorios
+│   │   │   └── usecase/                  # Casos de uso
+│   │   ├── data/                         # Capa de datos
+│   │   │   ├── local/                    # Fuentes de datos locales
+│   │   │   │   ├── database/             # Room DB
+│   │   │   │   ├── preferences/          # SharedPreferences
+│   │   │   │   └── file/                 # Gestión de archivos
+│   │   │   ├── repository/               # Implementaciones de repositorios
+│   │   │   └── model/                    # DTOs y mappers
+│   │   ├── pdfprocessor/                 # Módulo de procesamiento de PDFs
+│   │   │   ├── extractor/                # Extractores de texto
+│   │   │   ├── parser/                   # Parseadores para diferentes formatos
+│   │   │   ├── ocr/                      # Integración con OCR
+│   │   │   └── model/                    # Modelos de datos extraídos
+│   │   └── ui/                           # Capa de presentación
+│   │       ├── common/                   # Componentes comunes
+│   │       ├── dashboard/                # Pantalla principal
+│   │       ├── category/                 # Pantalla de categorías
+│   │       ├── detail/                   # Detalle de parámetro
+│   │       ├── upload/                   # Carga de exámenes
+│   │       ├── compare/                  # Comparación de exámenes
+│   │       └── share/                    # Compartir resultados
+*/
+
+// Ejemplo 2: Modelos de datos principales
+
+package com.example.medtrackerapp.domain.model
+
+import java.util.Date
+
+// Examen completo
+data class MedicalExam(
+    val id: String,
+    val date: Date,
+    val laboratoryName: String,
+    val doctorName: String?,
+    val pdfFilePath: String,
+    val categories: List<ExamCategory>,
+    val patientInfo: PatientInfo
+)
+
+// Categoría de examen (Hematología, Bioquímica, etc.)
+data class ExamCategory(
+    val name: String,
+    val parameters: List<ExamParameter>
+)
+
+// Parámetro individual (Glucosa, Colesterol, etc.)
+data class ExamParameter(
+    val name: String,
+    val value: String,
+    val unit: String,
+    val referenceRange: String,
+    val status: ParameterStatus = ParameterStatus.NORMAL
+)
+
+// Estado de un parámetro según su rango de referencia
+enum class ParameterStatus {
+    NORMAL, 
+    WATCH, // Vigilar
+    ATTENTION, // Requiere atención
+    UNDEFINED // No se puede determinar
+}
+
+// Información del paciente
+data class PatientInfo(
+    val id: String,
+    val name: String,
+    val age: Int?,
+    val gender: String?
+)
+
+// Ejemplo 3: Base de datos Room
+
+package com.example.medtrackerapp.data.local.database
+
+import androidx.room.*
+import kotlinx.coroutines.flow.Flow
+import java.util.Date
+
+@Entity(tableName = "exams")
+data class ExamEntity(
+    @PrimaryKey val id: String,
+    val date: Date,
+    val laboratoryName: String,
+    val doctorName: String?,
+    val pdfFilePath: String,
+    val patientId: String,
+    val patientName: String
+)
+
+@Entity(tableName = "parameters")
+data class ParameterEntity(
+    @PrimaryKey val id: String,
+    val examId: String,
+    val categoryName: String,
+    val name: String,
+    val value: String,
+    val unit: String,
+    val referenceRange: String,
+    val status: Int // 0: Normal, 1: Watch, 2: Attention, 3: Undefined
+)
+
+@Dao
+interface ExamDao {
+    @Query("SELECT * FROM exams ORDER BY date DESC")
+    fun getExams(): Flow<List<ExamEntity>>
+    
+    @Query("SELECT * FROM exams WHERE id = :examId")
+    suspend fun getExamById(examId: String): ExamEntity?
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertExam(exam: ExamEntity)
+    
+    @Delete
+    suspend fun deleteExam(exam: ExamEntity)
+}
+
+@Dao
+interface ParameterDao {
+    @Query("SELECT * FROM parameters WHERE examId = :examId")
+    suspend fun getParametersByExamId(examId: String): List<ParameterEntity>
+    
+    @Query("SELECT * FROM parameters WHERE name = :paramName ORDER BY examId, date")
+    suspend fun getParameterHistory(paramName: String): List<ParameterEntity>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertParameters(parameters: List<ParameterEntity>)
+}
+
+// Ejemplo 4: Procesamiento de PDF con PdfRenderer nativo
+
+package com.example.medtrackerapp.pdfprocessor.extractor
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
+import java.io.File
+import java.io.FileOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+class PdfTextExtractor(private val context: Context) {
+
+    /**
+     * Extrae texto de un PDF con texto seleccionable
+     * Nota: Esta es una implementación simplificada. Android no tiene API nativa para
+     * extraer texto de PDFs, por lo que necesitarías una biblioteca de terceros como
+     * iText o PDFBox para Android (con licencias adecuadas).
+     */
+    suspend fun extractText(pdfFile: File): String = withContext(Dispatchers.IO) {
+        // Simulación - en implementación real usarías una biblioteca de terceros
+        // Este código solo renderiza a bitmap, no extrae texto
+        val fileDescriptor = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY)
+        val renderer = PdfRenderer(fileDescriptor)
+        
+        val stringBuilder = StringBuilder()
+        
+        for (i in 0 until renderer.pageCount) {
+            val page = renderer.openPage(i)
+            val bitmap = Bitmap.createBitmap(
+                page.width * 2, page.height * 2, 
+                Bitmap.Config.ARGB_8888
+            )
+            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            
+            // Aquí necesitarías OCR o una biblioteca de extracción de texto de PDF
+            // Por simplicidad, omitimos la implementación real
+            
+            page.close()
+        }
+        
+        renderer.close()
+        fileDescriptor.close()
+        
+        return@withContext stringBuilder.toString()
+    }
+    
+    /**
+     * Convierte un PDF a imágenes para OCR (para PDFs escaneados)
+     */
+    suspend fun pdfToImages(pdfFile: File): List<File> = withContext(Dispatchers.IO) {
+        val fileDescriptor = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY)
+        val renderer = PdfRenderer(fileDescriptor)
+        val imageFiles = mutableListOf<File>()
+        
+        for (i in 0 until renderer.pageCount) {
+            val page = renderer.openPage(i)
+            val bitmap = Bitmap.createBitmap(
+                page.width * 2, page.height * 2, 
+                Bitmap.Config.ARGB_8888
+            )
+            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            
+            // Guardar el bitmap como archivo temporal
+            val imageFile = File(context.cacheDir, "page_${i}.jpg")
+            FileOutputStream(imageFile).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+            }
+            
+            imageFiles.add(imageFile)
+            page.close()
+        }
+        
+        renderer.close()
+        fileDescriptor.close()
+        
+        return@withContext imageFiles
+    }
+}
+
+// Ejemplo 5: OCR con ML Kit para PDFs escaneados
+
+package com.example.medtrackerapp.pdfprocessor.ocr
+
+import android.content.Context
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+
+class OcrProcessor(private val context: Context) {
+
+    private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    
+    /**
+     * Realiza OCR en una imagen y devuelve el texto extraído
+     */
+    suspend fun performOcr(imageFile: File): String = withContext(Dispatchers.IO) {
+        val image = InputImage.fromFilePath(context, imageFile.toUri())
+        val result = recognizer.process(image).await()
+        return@withContext result.text
+    }
+    
+    /**
+     * Procesa múltiples imágenes (páginas de PDF) con OCR
+     */
+    suspend fun processImages(imageFiles: List<File>): String = withContext(Dispatchers.IO) {
+        val textBuilder = StringBuilder()
+        
+        for (imageFile in imageFiles) {
+            try {
+                val pageText = performOcr(imageFile)
+                textBuilder.append(pageText).append("\n\n")
+            } catch (e: Exception) {
+                // Manejo de errores
+            } finally {
+                // Limpiar el archivo temporal después de procesarlo
+                imageFile.delete()
+            }
+        }
+        
+        return@withContext textBuilder.toString()
+    }
+}
+
+// Ejemplo 6: Parser para extraer datos estructurados del texto
+
+package com.example.medtrackerapp.pdfprocessor.parser
+
+import com.example.medtrackerapp.domain.model.ExamCategory
+import com.example.medtrackerapp.domain.model.ExamParameter
+import com.example.medtrackerapp.domain.model.ParameterStatus
+import java.util.regex.Pattern
+
+class LabResultParser {
+
+    // Patrones para diferentes formatos de laboratorio
+    private val linePattern = Pattern.compile(
+        "([A-Za-zÀ-ÿ\\s\\(\\)]+)\\s*:\\s*([0-9,.]+)\\s*([a-zA-Z%\\/]+)?\\s*(?:\\(?([0-9,.\\s\\-<>]+)\\)?)?",
+        Pattern.MULTILINE
+    )
+    
+    private val tablePattern = Pattern.compile(
+        "([A-Za-zÀ-ÿ\\s\\(\\)]+)\\s+([0-9,.]+)\\s+([a-zA-Z%\\/]+)?\\s+([0-9,.\\s\\-<>]+)",
+        Pattern.MULTILINE
+    )
+    
+    /**
+     * Extrae categorías y parámetros de un texto de examen de laboratorio
+     */
+    fun parseLabResult(text: String): List<ExamCategory> {
+        // Detectar categorías en el texto
+        val categories = detectCategories(text)
+        val result = mutableListOf<ExamCategory>()
+        
+        for (category in categories) {
+            // Extraer la sección de texto correspondiente a esta categoría
+            val categoryText = extractCategoryText(text, category, categories)
+            
+            // Extraer parámetros de esta categoría
+            val parameters = extractParameters(categoryText)
+            
+            if (parameters.isNotEmpty()) {
+                result.add(ExamCategory(category, parameters))
+            }
+        }
+        
+        return result
+    }
+    
+    /**
+     * Detecta posibles categorías en el texto
+     */
+    private fun detectCategories(text: String): List<String> {
+        val commonCategories = listOf(
+            "HEMATOLOGIA", "BIOQUIMICA", "ORINAS", 
+            "HORMONAS", "INMUNOLOGIA", "LIPIDOS", "COAGULACION"
+        )
+        
+        return commonCategories.filter { category ->
+            text.contains(category, ignoreCase = true)
+        }
+    }
+    
+    /**
+     * Extrae la sección de texto correspondiente a una categoría
+     */
+    private fun extractCategoryText(fullText: String, category: String, allCategories: List<String>): String {
+        val categoryIndex = fullText.indexOf(category, ignoreCase = true)
+        if (categoryIndex == -1) return ""
+        
+        // Encontrar la siguiente categoría o el final del texto
+        var endIndex = fullText.length
+        for (nextCategory in allCategories) {
+            if (nextCategory == category) continue
+            
+            val nextCategoryIndex = fullText.indexOf(nextCategory, categoryIndex + category.length, ignoreCase = true)
+            if (nextCategoryIndex != -1 && nextCategoryIndex < endIndex) {
+                endIndex = nextCategoryIndex
+            }
+        }
+        
+        return fullText.substring(categoryIndex, endIndex)
+    }
+    
+    /**
+     * Extrae parámetros de un texto de examen
+     */
+    private fun extractParameters(text: String): List<ExamParameter> {
+        val parameters = mutableListOf<ExamParameter>()
+        
+        // Probar con patrón de línea
+        val lineMatcher = linePattern.matcher(text)
+        while (lineMatcher.find()) {
+            val paramName = lineMatcher.group(1)?.trim() ?: continue
+            val value = lineMatcher.group(2)?.trim() ?: continue
+            val unit = lineMatcher.group(3)?.trim() ?: ""
+            val reference = lineMatcher.group(4)?.trim() ?: ""
+            
+            val status = determineStatus(value, reference)
+            
+            parameters.add(
+                ExamParameter(
+                    name = paramName,
+                    value = value,
+                    unit = unit,
+                    referenceRange = reference,
+                    status = status
+                )
+            )
+        }
+        
+        // Si no se encontraron con el patrón de línea, probar con patrón de tabla
+        if (parameters.isEmpty()) {
+            val tableMatcher = tablePattern.matcher(text)
+            while (tableMatcher.find()) {
+                val paramName = tableMatcher.group(1)?.trim() ?: continue
+                val value = tableMatcher.group(2)?.trim() ?: continue
+                val unit = tableMatcher.group(3)?.trim() ?: ""
+                val reference = tableMatcher.group(4)?.trim() ?: ""
+                
+                val status = determineStatus(value, reference)
+                
+                parameters.add(
+                    ExamParameter(
+                        name = paramName,
+                        value = value,
+                        unit = unit,
+                        referenceRange = reference,
+                        status = status
+                    )
+                )
+            }
+        }
+        
+        return parameters
+    }
+    
+    /**
+     * Determina el estado de un parámetro comparando con su rango de referencia
+     */
+    private fun determineStatus(value: String, reference: String): ParameterStatus {
+        if (reference.isEmpty()) return ParameterStatus.UNDEFINED
+        
+        try {
+            val numericValue = value.replace(",", ".").toDoubleOrNull() ?: return ParameterStatus.UNDEFINED
+            
+            // Manejar diferentes formatos de rango de referencia
+            when {
+                reference.contains("-") -> {
+                    // Formato: "10 - 20"
+                    val parts = reference.split("-").map { it.trim().replace(",", ".") }
+                    if (parts.size == 2) {
+                        val min = parts[0].toDoubleOrNull()
+                        val max = parts[1].toDoubleOrNull()
+                        
+                        if (min != null && max != null) {
+                            return when {
+                                numericValue < min -> ParameterStatus.WATCH
+                                numericValue > max -> ParameterStatus.WATCH
+                                else -> ParameterStatus.NORMAL
+                            }
+                        }
+                    }
+                }
+                reference.contains("<") -> {
+                    // Formato: "< 10"
+                    val max = reference.replace("<", "").trim().replace(",", ".").toDoubleOrNull()
+                    if (max != null) {
+                        return if (numericValue < max) ParameterStatus.NORMAL else ParameterStatus.WATCH
+                    }
+                }
+                reference.contains(">") -> {
+                    // Formato: "> 10"
+                    val min = reference.replace(">", "").trim().replace(",", ".").toDoubleOrNull()
+                    if (min != null) {
+                        return if (numericValue > min) ParameterStatus.NORMAL else ParameterStatus.WATCH
+                    }
+                }
+            }
+            
+            return ParameterStatus.UNDEFINED
+        } catch (e: Exception) {
+            return ParameterStatus.UNDEFINED
+        }
+    }
+}
+
+// Ejemplo 7: ViewModel para la pantalla de detalles
+
+package com.example.medtrackerapp.ui.detail
+
+import androidx.lifecycle.*
+import com.example.medtrackerapp.domain.model.ExamParameter
+import com.example.medtrackerapp.domain.usecase.GetParameterHistoryUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import java.util.Date
+import javax.inject.Inject
+
+data class ParameterHistoryPoint(
+    val date: Date,
+    val value: Double,
+    val isNormal: Boolean
+)
+
+data class ParameterDetailState(
+    val isLoading: Boolean = false,
+    val parameterName: String = "",
+    val currentValue: String = "",
+    val unit: String = "",
+    val referenceRange: String = "",
+    val historyPoints: List<ParameterHistoryPoint> = emptyList(),
+    val error: String? = null
+)
+
+@HiltViewModel
+class ParameterDetailViewModel @Inject constructor(
+    private val getParameterHistoryUseCase: GetParameterHistoryUseCase,
+    savedStateHandle: SavedStateHandle
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ParameterDetailState())
+    val uiState: StateFlow<ParameterDetailState> = _uiState
+    
+    init {
+        // Obtener parámetros de navegación
+        val parameterName = savedStateHandle.get<String>("parameterName") ?: ""
+        val currentValue = savedStateHandle.get<String>("currentValue") ?: ""
+        val unit = savedStateHandle.get<String>("unit") ?: ""
+        val referenceRange = savedStateHandle.get<String>("referenceRange") ?: ""
+        
+        _uiState.value = _uiState.value.copy(
+            parameterName = parameterName,
+            currentValue = currentValue,
+            unit = unit,
+            referenceRange = referenceRange
+        )
+        
+        loadParameterHistory(parameterName)
+    }
+    
+    private fun loadParameterHistory(parameterName: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
+            try {
+                val history = getParameterHistoryUseCase(parameterName)
+                
+                // Convertir parámetros a puntos para gráfico
+                val historyPoints = history.mapNotNull { parameter ->
+                    val value = parameter.value.replace(",", ".").toDoubleOrNull() ?: return@mapNotNull null
+                    val isNormal = parameter.status == ParameterStatus.NORMAL
+                    
+                    ParameterHistoryPoint(
+                        date = getDateFromExamId(parameter.examId),
+                        value = value,
+                        isNormal = isNormal
+                    )
+                }
+                
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    historyPoints = historyPoints
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "Error al cargar el historial: ${e.message}"
+                )
+            }
+        }
+    }
+    
+    // Función auxiliar para obtener la fecha a partir del ID del examen
+    private suspend fun getDateFromExamId(examId: String): Date {
+        // En una implementación real, obtendrías la fecha del examen desde la base de datos
+        // Por simplic
