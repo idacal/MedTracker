@@ -27,6 +27,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.medtrackerapp.ui.dashboard.DashboardScreen
 import com.example.medtrackerapp.ui.upload.UploadScreen
+import com.example.medtrackerapp.ui.category.CategoryListScreen
+import com.example.medtrackerapp.ui.navigation.Screen
+import com.example.medtrackerapp.ui.category.CategoryDetailScreen
 
 /**
  * Secciones principales de la aplicación
@@ -57,30 +60,6 @@ sealed class BottomNavItem(
         selectedIcon = Icons.Filled.Person,
         unselectedIcon = Icons.Outlined.Person
     )
-}
-
-/**
- * Rutas de navegación detalladas
- */
-sealed class Screen(val route: String) {
-    object Dashboard : Screen("dashboard")
-    object CategoryList : Screen("category_list/{examId}")
-    object CategoryDetail : Screen("category_detail/{examId}/{categoryName}")
-    object ParameterDetail : Screen("parameter_detail/{parameterName}")
-    object CompareParameters : Screen("compare_parameters/{parameterName}")
-    object Upload : Screen("upload")
-    object History : Screen("history")
-    object Profile : Screen("profile")
-    
-    // Funciones para crear rutas con parámetros
-    fun createRoute(vararg args: String): String {
-        return buildString {
-            append(route)
-            args.forEach { arg ->
-                route.replace("{${arg.substringBefore("=")}}", arg.substringAfter("="))
-            }
-        }
-    }
 }
 
 /**
@@ -125,9 +104,14 @@ fun MedTrackerNavigation() {
             // Detalles de categoría
             composable(Screen.CategoryList.route) { navBackStackEntry ->
                 val examId = navBackStackEntry.arguments?.getString("examId") ?: ""
-                // CategoryListScreen(navController, examId)
-                // Implementación pendiente
-                Text("Pantalla de Categorías para el examen $examId")
+                CategoryListScreen(navController, examId)
+            }
+            
+            // Detalle de categoría (parámetros)
+            composable(Screen.CategoryDetail.route) { navBackStackEntry ->
+                val examId = navBackStackEntry.arguments?.getString("examId") ?: ""
+                val categoryName = navBackStackEntry.arguments?.getString("categoryName") ?: ""
+                CategoryDetailScreen(navController, examId, categoryName)
             }
             
             // Detalles de parámetro
