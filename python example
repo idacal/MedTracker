@@ -1,0 +1,162 @@
+def handle_uploaded_file(pdf_file):
+    media_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'media')
+    file_path = os.path.join(media_root, pdf_file.name)
+    with open(file_path, 'wb+') as destination:
+        for chunk in pdf_file.chunks():
+            destination.write(chunk)
+    select_file_and_extract_text(file_path)
+
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    with open(pdf_path, 'rb') as file:
+        reader = PyPDF2.PdfReader(file)
+        for page in reader.pages:
+            text += page.extract_text()
+    return text
+def find_keywords_and_values(text, Macro_Marcadores, inc_data):
+    categorias = Macro_Marcadores.keys()
+    data = inc_data
+    keywords = []
+    lines = text.split('\n')
+    i = 0
+    leucocitos = ['Eosinófilos', 'Basófilos', 'Neutrófilos', 'Linfocitos', 'Monocitos']
+    while i < len(lines):
+        line = lines[i].strip()
+
+        if line.replace(" ", "").strip() == "TomadeMuestra":
+            fechaMuestra = [lines[i + j].strip() for j in range(1, 3)]
+            fecha_completa = fechaMuestra[1]
+            fecha_ddmmyy = fecha_completa.split()[0]
+            print(fecha_ddmmyy)
+
+        for categoria in categorias:
+            if categoria.upper() in line.upper():
+                cat = unicodedata.normalize("NFKD", categoria).encode("ASCII", "ignore").decode("utf-8").upper()
+                keywords = Macro_Marcadores[categoria]
+                break
+        for keyword in keywords:
+            if keyword.replace(" ", "").strip() == line.replace(" ", "").strip():
+                if any(d[2] == keyword and d[1] == cat for d in data):
+                    break
+                try:
+                    if keyword in leucocitos:
+                        keyword_lines = [lines[i + j].strip() for j in range(3, 5)]
+                    elif keyword == "Tpo de protrombina":
+                        keyword_lines = [lines[i + j].strip() for j in range(5, 8)]
+                    else:
+                        keyword_lines = [lines[i + j].strip() for j in range(1, 5)]
+
+                    keyword_lines = [line.replace(",", ".") for line in keyword_lines]
+                    value = None
+                    reference_value = None
+                    lower_limit = ""
+                    upper_limit = ""
+                    for keyword_line in keyword_lines:
+                        if is_number(keyword_line):
+                            value = float(keyword_line)
+                            break
+                    if value is None:
+                        value = keyword_lines[1]
+
+                    if reference_value is None:
+                        for keyword_line in keyword_lines:
+                            if "<" in keyword_line:
+                                if len(keyword_line) > 1:
+                                    ref_values = keyword_line.split('<')
+                                    if len(ref_values) == 2 and is_number(ref_values[1]):
+                                        lower_limit = 0
+                                        upper_limit = float(ref_values[1])
+                                        reference_value = keyword_line
+                                        break
+                            elif ">" in keyword_line:
+                                if len(keyword_line) > 1:
+                                    ref_values = keyword_line.split('>')
+                                    if len(ref_values) == 2 and is_number(ref_values[1]):
+                                        lower_limit = float(ref_values[1])
+                                        upper_limit = None
+                                        reference_value = keyword_line
+                                        break
+                            elif "-" in keyword_line:
+                                if len(keyword_line) > 1 and "V.N" not in keyword_line and "(" not in keyword_line:
+                                    ref_values = keyword_line.split('-')
+                                    if len(ref_values) == 2 and all(is_number(val) for val in ref_values):
+                                        lower_limit = float(ref_values[0])
+                                        upper_limit = float(ref_values[1])
+                                        reference_value = keyword_line
+                                        break
+                                else:
+                                    reference_value = keyword_line
+                                    break
+                    keyy = unicodedata.normalize("NFKD", keyword).encode("ASCII", "ignore").decode("utf-8")
+                    data.append([fecha_ddmmyy, cat, keyy, value, lower_limit, upper_limit, reference_value])
+                    break
+                except IndexError:
+                    pass
+        i += 1
+    return data
+
+def is_number(s):
+    try:
+        float(s.replace(",", "."))
+        return True
+    except ValueError:
+        return False
+    
+def select_file_and_extract_text(pdf_path):
+    data = []
+    if pdf_path:
+        try:
+            text = extract_text_from_pdf(pdf_path)
+            Macro_Marcadores = {
+                "HEMATOLOGIA": {
+                    'Leucocitos', 'Eritrocitos', 'Hemoglobina', 'Hematocrito', 'V.C.M.', 'H.C.M.', 'C.H.C.M.', 'A.D.E.',
+                    'Plaquetas', 'V.H.S.', 'Eosinófilos', 'Basófilos', 'Neutrófilos', 'Linfocitos', 'Monocitos'
+                },
+                "ORINAS": {
+                    'Aspecto', 'Color', 'Densidad', 'pH', 'Leucocitos', 'Nitritos', 'Proteína', 'Glucosa',
+                    'Cuerpos cetónicos', 'Urobilinógeno', 'Bilirrubina', 'Sangre (Hb)', 'Hematíes', 'Leucocitos',
+                    'Piocitos', 'Células epiteliales', 'Bacterias', 'Mucus', 'Levaduras', 'Cristales oxalato cálcico',
+                    'Cristales amorfos', 'Hialinos', 'Granulosos gruesos'
+                },
+                "Estudio de lípidos": {
+                    'Colesterol Total', 'Colesterol HDL', 'Colesterol No HDL', 'Colesterol LDL (Friedewald)',
+                    'Colesterol VLDL', 'Triglicéridos', 'Colesterol total / HDL'
+                },
+                "Perfil Hepático": {
+                    'Bilirrubina total', 'Bilirrubina directa', 'A.S.A.T. (GOT)', 'A.L.A.T. (GPT)', 'Fosfatasa alcalina',
+                    'Gama-Glutamiltransp', 'Tpo de protrombina', 'I.N.R. (Razón Intern. Normal.)', 'FIB-4'
+                },
+                "Vitaminas": {'Vitamina B12 ', '25-hidroxi-vitamina D'},
+                "Perfil Bioquímico": {
+                    'Bilirrubina total', 'Bilirrubina directa', 'Creatinina', 'Glucosa', 'Acido úrico', 'Urea', 'Calcio',
+                    'Fósforo', 'Colesterol', 'Triglicéridos', 'Proteínas totales', 'Albúmina', 'Globulinas',
+                    'Índice Alb/Glob', 'A.S.A.T. (GOT)', 'A.L.A.T. (GPT)', 'Fosfatasa alcalina', 'Lactato Deshidrogenasa'
+                },
+                "tiroídeas": {'Tirotropina (TSH ultrasensible)'}
+            }
+
+            data = find_keywords_and_values(text, Macro_Marcadores, data)
+
+            if not data:
+                print("Sin resultados", "No se encontraron palabras clave in el documento.")
+                return
+
+            current_datetime = datetime.now()
+            output_excel_filename = "Registro_examenes.xlsx"
+            output_excel_path = os.path.join(settings.MEDIA_ROOT, output_excel_filename)
+
+            if not os.path.exists(settings.MEDIA_ROOT):
+                os.makedirs(settings.MEDIA_ROOT)
+
+            save_to_excel(data, output_excel_path)
+            print("Éxito", f"Datos extraídos y guardados in {output_excel_path}")
+
+            output_text_path = os.path
+            output_text_path = os.path.splitext(pdf_path)[0] + '.txt'
+            save_to_txt(text, output_text_path)
+            print("Éxito", f"Texto extraído y guardado in {output_text_path}")
+
+        except Exception as e:
+            print("Error", f"Ocurrió un error al procesar el archivo: {e}")
+    else:
+        print("Cancelado", "Selección de archivo cancelada.")
